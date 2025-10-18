@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, Frame
-from tkinter.ttk import Notebook
+from tkinter import ttk
 
 from Gui.FrameAnalyzer import FrameAnalyzer
 from Gui.FrameEventLog import FrameEventLog

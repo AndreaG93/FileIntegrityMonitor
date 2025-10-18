@@ -1,4 +1,5 @@
 import threading
+import time
 
 from Gui.AnalysisObserver import AnalysisObserver
 import tkinter as tk
@@ -21,8 +22,6 @@ class FrameAnalyzer(AnalysisObserver):
             raise ValueError("root cannot be None")
         elif logger is None:
             raise ValueError("logger cannot be None")
-        #elif not isinstance(logger, Gui.AnalysisLogger):
-        #    raise TypeError(f"Expected 'ttk.Frame', got {type(root).__name__}")
         elif not isinstance(root, ttk.Frame):
             raise TypeError(f"Expected 'ttk.Frame', got {type(root).__name__}")
 
@@ -60,34 +59,30 @@ class FrameAnalyzer(AnalysisObserver):
         frame = ttk.LabelFrame(self._root, text="Analysis Type", padding=(10, 5, 0, 10))
         frame.grid(row=0, column=0, padx=5, pady=5, sticky="nesw")
 
-        analyze_radio = tk.Radiobutton(frame,
-                                       text="Analyze",
-                                       variable=self._is_analysis_mode_selected,
-                                       value=True,
-                                       command=self._on_analysis_mode_selected_change)
+        self._analyze_radio = tk.Radiobutton(frame,
+                                             text="Analyze",
+                                             variable=self._is_analysis_mode_selected,
+                                             value=True,
+                                             command=self._on_analysis_mode_selected_change)
 
-        analyze_radio.grid(row=0, sticky="w", pady=5)
+        self._analyze_radio.grid(row=0, sticky="w", pady=5)
 
         # Verify Radio Button...
         tk.Label(frame, text="Generate SHA512 hashes for all files and save the results to an output file.",
                  font=("TkDefaultFont", 8)).grid(row=1, column=0, sticky="w", padx=20)
 
-        verify_radio = tk.Radiobutton(frame,
-                                      text="Verify",
-                                      variable=self._is_analysis_mode_selected,
-                                      value=False,
-                                      command=self._on_analysis_mode_selected_change)
+        self._verify_radio = tk.Radiobutton(frame,
+                                            text="Verify",
+                                            variable=self._is_analysis_mode_selected,
+                                            value=False,
+                                            command=self._on_analysis_mode_selected_change)
 
-        verify_radio.grid(row=2, sticky="w", pady=5)
+        self._verify_radio.grid(row=2, sticky="w", pady=5)
 
         tk.Label(frame, text="Verify files by comparing their SHA512 hashes against a provided reference file.",
                  font=("TkDefaultFont", 8)).grid(row=3, column=0, sticky="w", padx=20)
 
     def _on_analysis_mode_selected_change(self):
-
-        self._selected_directory = ""
-        self._selected_file = ""
-
         self._refresh_ui()
 
 
@@ -109,7 +104,10 @@ class FrameAnalyzer(AnalysisObserver):
         self._label_selected_directory = tk.Label(frame, text="", anchor="w", width=50, relief="sunken")
         self._label_selected_directory.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
 
-        tk.Button(frame, text="Browse", command=self._open_directory_selection_dialog).grid(row=1, column=2, padx=5)
+        self._button_directory_selection = tk.Button(frame,
+                                                     text="Browse",
+                                                     command=self._open_directory_selection_dialog)
+        self._button_directory_selection.grid(row=1, column=2, padx=5)
 
         # File
         self._label_selected_file_header = tk.Label(frame)
@@ -118,7 +116,9 @@ class FrameAnalyzer(AnalysisObserver):
         self._label_selected_file = tk.Label(frame, text="", anchor="w", width=50, relief="sunken")
         self._label_selected_file.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
 
-        tk.Button(frame, text="Browse", command=self._open_file_selection_dialog).grid(row=2, column=2, padx=5)
+        self._button_file_selection = tk.Button(frame, text="Browse",
+                                                       command=self._open_file_selection_dialog)
+        self._button_file_selection.grid(row=2, column=2, padx=5)
 
     def _create_progress_section(self):
         """
@@ -148,9 +148,6 @@ class FrameAnalyzer(AnalysisObserver):
 
         self._start_button = tk.Button(button_frame, text="Start", width=20, command=self.analyze)
         self._start_button.grid(row=0, column=0, padx=5)
-
-        self._cancel_button = tk.Button(button_frame, text="Cancel", width=20)
-        self._cancel_button.grid(row=0, column=1, padx=5)
 
     def _open_directory_selection_dialog(self):
         """
@@ -201,8 +198,15 @@ class FrameAnalyzer(AnalysisObserver):
             self._progress_bar["value"] = 0
             self._progress_info_label["text"] = ""
 
-            # Setup 'Action Button'
-            self._cancel_button.config(state="disabled")
+            # Setup 'Browse' buttons...
+            self._button_directory_selection.config(state="active")
+            self._button_file_selection.config(state="active")
+
+            # Setup 'Task Selection'...
+            self._analyze_radio.config(state="active")
+            self._verify_radio.config(state="active")
+
+            # Setup 'Action Button'...
             if ((self._selected_file and self._selected_file.strip()) and
                     (self._selected_directory and self._selected_directory.strip())):
 
@@ -213,9 +217,16 @@ class FrameAnalyzer(AnalysisObserver):
         # Analysis running
         else:
 
-            # Setup 'Action Button'
+            # Setup 'Browse' buttons...
+            self._button_directory_selection.config(state="disabled")
+            self._button_file_selection.config(state="disabled")
+
+            # Setup 'Task Selection'...
+            self._analyze_radio.config(state="disabled")
+            self._verify_radio.config(state="disabled")
+
+            # Setup 'Action Button'...
             self._start_button.config(state="disabled")
-            self._cancel_button.config(state="active")
 
             # Setup 'Progress Bar'...
             self._progress_bar["value"] = self._file_analyzed_count - 1
@@ -228,16 +239,17 @@ class FrameAnalyzer(AnalysisObserver):
 
         :return: None
         """
-
         try:
             self._thread = threading.Thread(target=self._analyze_task)
-            self._thread.start()
 
-            self._root.after(50, self.analyze_check_status)
+            self._file_analyzed_count = 0
+            self._refresh_ui()
+
+            self._thread.start()
+            self._root.after(50, lambda param : self.analyze_check_status(), None)
 
         except Exception as e:
             self._logger.log(f"An unexpected error occurred:\n{str(e)}")
-            #messagebox.showerror("Error", f"An unexpected error occurred:\n{str(e)}")
 
     def analyze_check_status(self):
         """
@@ -246,25 +258,31 @@ class FrameAnalyzer(AnalysisObserver):
         """
 
         if self._thread.is_alive():
-            self._root.after(50, self.analyze_check_status)
+            self._root.after(50, lambda param : self.analyze_check_status(), None)
         else:
             self._thread.join()
 
             self._thread = None
             self._refresh_ui()
+            messagebox.showinfo("Analysis Complete", "The analysis has finished. Check the logs for more information")
 
     def _analyze_task(self):
         """
+        Executes the analysis task based on the selected mode.
+        It either scans the directory and writes SHA512 hashes to a file,
+        or verifies existing hashes against files in the directory.
 
-        :return:
+        :return: None
         """
-        self._start_button.config(state="disabled")
-        self._file_analyzed_count = 0
-        self._file_count = HelperUserInterface.count_files(self._selected_directory)
-        self._progress_bar.config(maximum=self._file_count)
+        try:
 
+            self._file_count = HelperUserInterface.count_files(self._selected_directory)
+            self._progress_bar.config(maximum=self._file_count)
 
-        if self._is_analysis_mode_selected.get():
-            analyze_directory(self._selected_directory, self._selected_file, self, self._logger)
-        else:
-            verify_hashes(self._selected_directory, self._selected_file, self, self._logger)
+            if self._is_analysis_mode_selected.get():
+                analyze_directory(self._selected_directory, self._selected_file, self, self._logger)
+            else:
+                verify_hashes(self._selected_directory, self._selected_file, self, self._logger)
+
+        except Exception as e:
+            messagebox.showerror("Analysis Error", f"An error occurred during analysis:\n{str(e)}")

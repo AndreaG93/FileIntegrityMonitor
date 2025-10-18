@@ -1,5 +1,4 @@
 import os
-import tkinter as tk
 from tkinter import filedialog
 
 def select_folder():
@@ -10,9 +9,6 @@ def select_folder():
              Returns an empty string if the user cancels.
     """
 
-    root = tk.Tk()
-    root.withdraw()
-
     return filedialog.askdirectory(title="Select folder to analyze")
 
 def select_output_file():
@@ -22,10 +18,6 @@ def select_output_file():
     :return: Full path to the file selected for saving.
              Returns an empty string if the user cancels.
     """
-
-    # Create a hidden root window
-    root = tk.Tk()
-    root.withdraw()
 
     # Open the save file dialog
     return filedialog.asksaveasfilename(
@@ -41,10 +33,6 @@ def select_hash_file():
     :return: Full path to the selected file as a string.
              Returns an empty string if the user cancels.
     """
-
-    # Create a hidden root window
-    root = tk.Tk()
-    root.withdraw()
 
     # Open the file selection dialog
     return filedialog.askopenfilename(
